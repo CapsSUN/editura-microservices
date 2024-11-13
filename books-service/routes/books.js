@@ -3,77 +3,68 @@ const express = require("express");
 const router = express.Router();
 const Book = require("../models/Book");
 
-// Funție pentru trimiterea unui mesaj de eroare
-const handleError = (res, message, statusCode = 500) => {
-  res.status(statusCode).json({ error: message });
-};
-
-// Obține toate cărțile
+// Obține toate cărțile cu detaliile autorilor// GET /api/books - Obține toate cărțile
 router.get("/", async (req, res) => {
   try {
-    const books = await Book.find();
+    const books = await Book.find(); // Afișează toate cărțile
     res.json(books);
   } catch (error) {
-    handleError(res, "Eroare la obținerea cărților");
+    console.error("Eroare la obținerea cărților:", error.message);
+    res.status(500).json({ error: "Eroare la obținerea cărților" });
   }
 });
 
-// Creează o carte nouă
+// Creează o nouă carte
 router.post("/", async (req, res) => {
   try {
-    // Caută o carte cu același ISBN
-    const existingBook = await Book.findOne({ isbn: req.body.isbn });
-    if (existingBook) {
-      return handleError(res, "Cartea cu acest ISBN există deja", 400);
-    }
-
-    // Dacă nu există, creează cartea nouă
-    const book = new Book(req.body);
+    const { title, authors, genre, isbn, publishedDate } = req.body;
+    const book = new Book({ title, authors, genre, isbn, publishedDate });
     await book.save();
     res.status(201).json(book);
   } catch (error) {
-    handleError(res, "Eroare la crearea cărții");
+    console.error("Eroare la crearea cărții:", error.message);
+    res.status(500).json({ error: "Eroare la crearea cărții" });
   }
 });
 
-// Obține o carte după ID
+// GET /api/books/:id - Obține o carte după ID
 router.get("/:id", async (req, res) => {
   try {
     const book = await Book.findById(req.params.id);
-    if (!book) {
-      return handleError(res, "Cartea nu a fost găsită", 404);
-    }
+    if (!book)
+      return res.status(404).json({ error: "Cartea nu a fost găsită" });
     res.json(book);
   } catch (error) {
-    handleError(res, "Eroare la obținerea cărții");
+    console.error("Eroare la obținerea cărții:", error.message);
+    res.status(500).json({ error: "Eroare la obținerea cărții" });
   }
 });
 
-// Actualizează o carte după ID
+// PUT /api/books/:id - Actualizează o carte după ID
 router.put("/:id", async (req, res) => {
   try {
     const book = await Book.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
-    if (!book) {
-      return handleError(res, "Cartea nu a fost găsită", 404);
-    }
+    if (!book)
+      return res.status(404).json({ error: "Cartea nu a fost găsită" });
     res.json(book);
   } catch (error) {
-    handleError(res, "Eroare la actualizarea cărții");
+    console.error("Eroare la actualizarea cărții:", error.message);
+    res.status(500).json({ error: "Eroare la actualizarea cărții" });
   }
 });
 
-// Șterge o carte după ID
+// DELETE /api/books/:id - Șterge o carte după ID
 router.delete("/:id", async (req, res) => {
   try {
     const book = await Book.findByIdAndDelete(req.params.id);
-    if (!book) {
-      return handleError(res, "Cartea nu a fost găsită", 404);
-    }
+    if (!book)
+      return res.status(404).json({ error: "Cartea nu a fost găsită" });
     res.json({ message: "Cartea a fost ștearsă cu succes" });
   } catch (error) {
-    handleError(res, "Eroare la ștergerea cărții");
+    console.error("Eroare la ștergerea cărții:", error.message);
+    res.status(500).json({ error: "Eroare la ștergerea cărții" });
   }
 });
 

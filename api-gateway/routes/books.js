@@ -1,71 +1,79 @@
+// module.exports = router;
+
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
-const cache = require("../server").cache; // Importă cache-ul din server.js
-const checkCache = require("../server").checkCache; // Importă middleware-ul checkCache
-const CircuitBreaker = require("opossum");
+const NodeCache = require("node-cache");
+const eventBus = require("../eventBus"); // Importă eventBus
+
+// Inițializează cache-ul cu un TTL de 10 minute
+const cache = new NodeCache({ stdTTL: 600 });
 
 // URL-ul Books Service din variabilele de mediu
 const BOOKS_SERVICE_URL =
   process.env.BOOKS_SERVICE_URL || "http://localhost:3001";
 
-// Configurare pentru circuit breaker
-const options = {
-  timeout: 3000, // Timpul maxim de răspuns pentru fiecare cerere (3 secunde)
-  errorThresholdPercentage: 50, // Circuitul se deschide dacă 50% din cereri eșuează
-  resetTimeout: 10000, // Circuitul se va reseta după 10 secunde
+// Middleware pentru a verifica cache-ul
+const checkCache = (req, res, next) => {
+  const key = req.originalUrl;
+  const cachedResponse = cache.get(key);
+  if (cachedResponse) {
+    console.log(`Servind datele din cache pentru: ${key}`);
+    return res.json(cachedResponse); // Returnează răspunsul din cache
+  }
+  next(); // Continuă cererea dacă nu există în cache
 };
 
-// Funcția care face cererea către Books Service
-const getBooks = async () => {
-  return axios.get(`${BOOKS_SERVICE_URL}/api/books`);
-};
-
-// Configurăm circuit breaker-ul cu funcția getBooks
-const breaker = new CircuitBreaker(getBooks, options);
-
-// Gestionare evenimente circuit breaker
-breaker.on("open", () =>
-  console.log("Circuitul este DESCHIS - oprirea temporară a cererilor")
-);
-breaker.on("halfOpen", () =>
-  console.log("Circuitul este pe cale să se redeschidă")
-);
-breaker.on("close", () =>
-  console.log("Circuitul este ÎNCHIS - cererile au fost reluate")
-);
-
-// GET /api/books - Obține toate cărțile cu cache și circuit breaker
+// GET /api/books - Obține toate cărțile, cu caching
 router.get("/", checkCache, async (req, res) => {
   try {
-    const response = await breaker.fire(); // Folosește circuit breaker-ul
+    const response = await axios.get(`${BOOKS_SERVICE_URL}/api/books`);
     cache.set(req.originalUrl, response.data); // Stochează răspunsul în cache
-    res.json(response.data); // Trimite răspunsul către client
+    res.json(response.data);
   } catch (error) {
-    console.error(
-      "Eroare la obținerea cărților prin circuit breaker:",
-      error.message
-    );
-    res.status(500).json({
-      error: "Serviciul de cărți nu este disponibil în acest moment.",
-    });
+    console.error("Eroare la obținerea cărților:", error.message);
+    res.status(500).json({ error: "Eroare la obținerea cărților" });
   }
 });
 
-// 2. POST /api/books - Creează o nouă carte
+// Emiterea evenimentului BOOK_CREATED și actualizarea autorilor
+const emitBookCreatedEvent = async (book) => {
+  console.log("Eveniment BOOK_CREATED emis pentru cartea:", book);
+
+  try {
+    // Trimite cererea către authors-service pentru a actualiza autorii cu noua carte
+    await axios.post("http://localhost:3003/api/authors/add-book", {
+      authorIds: book.authors,
+      bookId: book._id,
+    });
+    console.log("Autorii au fost actualizați cu noua carte.");
+  } catch (error) {
+    console.error("Eroare la actualizarea autorilor:", error.message);
+  }
+};
+
+// Funția pentru crearea unei cărți noi
 router.post("/", async (req, res) => {
   try {
     const response = await axios.post(
       `${BOOKS_SERVICE_URL}/api/books`,
       req.body
     );
-    res.status(201).json(response.data);
+    const newBook = response.data;
+    res.status(201).json(newBook);
+
+    // Invalidează cache-ul pentru toate cărțile
+    cache.del("/api/books");
+
+    // Emite un eveniment "BOOK_CREATED" și trimite datele cărții
+    await emitBookCreatedEvent(newBook);
   } catch (error) {
+    console.error("Eroare la crearea cărții:", error.message);
     res.status(500).json({ error: "Eroare la crearea cărții" });
   }
 });
 
-// 3. GET /api/books/:id - Obține o carte după ID
+// GET /api/books/:id - Obține o carte după ID (fără caching pentru ID-uri individuale)
 router.get("/:id", async (req, res) => {
   try {
     const response = await axios.get(
@@ -81,13 +89,21 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 4. PUT /api/books/:id - Actualizează o carte după ID
+// PUT /api/books/:id - Actualizează o carte după ID (fără caching)
 router.put("/:id", async (req, res) => {
   try {
     const response = await axios.put(
       `${BOOKS_SERVICE_URL}/api/books/${req.params.id}`,
       req.body
     );
+
+    // Invalidează cache-ul pentru toate cărțile
+    cache.del("/api/books");
+
+    // Emite un eveniment "BOOK_UPDATED" și trimite datele actualizate ale cărții
+    eventBus.emit("BOOK_UPDATED", response.data);
+    console.log("Eveniment BOOK_UPDATED emis pentru cartea:", response.data);
+
     res.json(response.data);
   } catch (error) {
     if (error.response && error.response.status === 404) {
@@ -98,12 +114,20 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// 5. DELETE /api/books/:id - Șterge o carte după ID
+// DELETE /api/books/:id - Șterge o carte după ID (fără caching)
 router.delete("/:id", async (req, res) => {
   try {
     const response = await axios.delete(
       `${BOOKS_SERVICE_URL}/api/books/${req.params.id}`
     );
+
+    // Invalidează cache-ul pentru toate cărțile
+    cache.del("/api/books");
+
+    // Emite un eveniment "BOOK_DELETED" și trimite ID-ul cărții șterse
+    eventBus.emit("BOOK_DELETED", req.params.id);
+    console.log("Eveniment BOOK_DELETED emis pentru cartea ID:", req.params.id);
+
     res.json({ message: "Cartea a fost ștearsă cu succes" });
   } catch (error) {
     if (error.response && error.response.status === 404) {
