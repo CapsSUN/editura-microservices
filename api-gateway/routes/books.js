@@ -1,47 +1,42 @@
-// module.exports = router;
-
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
 const NodeCache = require("node-cache");
-const eventBus = require("../eventBus"); // Importă eventBus
+const eventBus = require("../eventBus");
 
-// Inițializează cache-ul cu un TTL de 10 minute
 const cache = new NodeCache({ stdTTL: 600 });
 
-// URL-ul Books Service din variabilele de mediu
 const BOOKS_SERVICE_URL =
   process.env.BOOKS_SERVICE_URL || "http://localhost:3001";
 
-// Middleware pentru a verifica cache-ul
 const checkCache = (req, res, next) => {
   const key = req.originalUrl;
   const cachedResponse = cache.get(key);
   if (cachedResponse) {
-    console.log(`Servind datele din cache pentru: ${key}`);
-    return res.json(cachedResponse); // Returnează răspunsul din cache
+    console.log(`Serving cached data for: ${key}`);
+    return res.json(cachedResponse);
   }
-  next(); // Continuă cererea dacă nu există în cache
+  next(); // Continue the request if not cached
 };
 
-// GET /api/books - Obține toate cărțile, cu caching
+// GET /api/books - Get all books, with caching
 router.get("/", checkCache, async (req, res) => {
   try {
     const response = await axios.get(`${BOOKS_SERVICE_URL}/api/books`);
-    cache.set(req.originalUrl, response.data); // Stochează răspunsul în cache
+    cache.set(req.originalUrl, response.data);
     res.json(response.data);
   } catch (error) {
-    console.error("Eroare la obținerea cărților:", error.message);
-    res.status(500).json({ error: "Eroare la obținerea cărților" });
+    console.error("Error getting books:", error.message);
+    res.status(500).json({ error: "Error getting books" });
   }
 });
 
-// Emiterea evenimentului BOOK_CREATED și actualizarea autorilor
+// Issue BOOK_CREATED event and update authors
 const emitBookCreatedEvent = async (book) => {
   console.log("Eveniment BOOK_CREATED emis pentru cartea:", book);
 
   try {
-    // Trimite cererea către authors-service pentru a actualiza autorii cu noua carte
+    // Send request to authors-service to update authors with new book
     await axios.post("http://localhost:3003/api/authors/add-book", {
       authorIds: book.authors,
       bookId: book._id,
