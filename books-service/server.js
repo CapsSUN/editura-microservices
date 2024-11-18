@@ -29,7 +29,7 @@ const dotenv = require("dotenv");
 const booksRoute = require("./routes/books");
 
 const reviewsRoute = require("./routes/reviews");
-console.log("Reviews Route:", reviewsRoute);
+// console.log("Reviews Route:", reviewsRoute);
 
 dotenv.config();
 const app = express();
