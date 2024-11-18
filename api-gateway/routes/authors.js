@@ -2,11 +2,9 @@ const express = require("express");
 const router = express.Router();
 const axios = require("axios");
 
-// Authors Service URL from environment variables or a default value
 const AUTHORS_SERVICE_URL =
   process.env.AUTHORS_SERVICE_URL || "http://localhost:3003";
 
-// GET /api/authors - Retrieve all authors
 router.get("/", async (req, res) => {
   try {
     const response = await axios.get(`${AUTHORS_SERVICE_URL}/api/authors`);
@@ -17,7 +15,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST /api/authors - Create a new author
 router.post("/", async (req, res) => {
   try {
     const response = await axios.post(
@@ -31,7 +28,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /api/authors/:id - Retrieve an author by ID
 router.get("/:id", async (req, res) => {
   try {
     const response = await axios.get(
@@ -48,7 +44,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT /api/authors/:id - Update an author by ID
 router.put("/:id", async (req, res) => {
   try {
     const response = await axios.put(
@@ -66,7 +61,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/authors/:id - Delete an author by ID
 router.delete("/:id", async (req, res) => {
   try {
     const response = await axios.delete(

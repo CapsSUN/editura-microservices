@@ -8,12 +8,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Include rutele pentru microserviciile Books, Contracts și Authors
 app.use("/api/books", require("./routes/books"));
 app.use("/api/contracts", require("./routes/contracts"));
 app.use("/api/authors", require("./routes/authors"));
 
-// Pornire API Gateway
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`API Gateway rulează pe portul ${PORT}`);

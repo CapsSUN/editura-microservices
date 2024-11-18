@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
@@ -16,7 +15,6 @@ mongoose
   .then(() => console.log("Connected to MongoDB for Contracts Service"))
   .catch((error) => console.log("MongoDB connection error:", error));
 
-// Rutele pentru Contracts Service
 app.use("/api/contracts", contractsRoute);
 
 const PORT = process.env.PORT || 3002;

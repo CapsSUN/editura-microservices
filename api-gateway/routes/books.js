@@ -16,10 +16,9 @@ const checkCache = (req, res, next) => {
     console.log(`Serving cached data for: ${key}`);
     return res.json(cachedResponse);
   }
-  next(); // Continue the request if not cached
+  next();
 };
 
-// GET /api/books - Get all books, with caching
 router.get("/", checkCache, async (req, res) => {
   try {
     const response = await axios.get(`${BOOKS_SERVICE_URL}/api/books`);
@@ -31,12 +30,10 @@ router.get("/", checkCache, async (req, res) => {
   }
 });
 
-// Issue BOOK_CREATED event and update authors
 const emitBookCreatedEvent = async (book) => {
   console.log("Eveniment BOOK_CREATED emis pentru cartea:", book);
 
   try {
-    // Send request to authors-service to update authors with new book
     await axios.post("http://localhost:3003/api/authors/add-book", {
       authorIds: book.authors,
       bookId: book._id,
@@ -47,7 +44,6 @@ const emitBookCreatedEvent = async (book) => {
   }
 };
 
-// Funția pentru crearea unei cărți noi
 router.post("/", async (req, res) => {
   try {
     const response = await axios.post(
@@ -57,10 +53,8 @@ router.post("/", async (req, res) => {
     const newBook = response.data;
     res.status(201).json(newBook);
 
-    // Invalidează cache-ul pentru toate cărțile
     cache.del("/api/books");
 
-    // Emite un eveniment "BOOK_CREATED" și trimite datele cărții
     await emitBookCreatedEvent(newBook);
   } catch (error) {
     console.error("Eroare la crearea cărții:", error.message);
@@ -68,7 +62,6 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /api/books/:id - Obține o carte după ID (fără caching pentru ID-uri individuale)
 router.get("/:id", async (req, res) => {
   try {
     const response = await axios.get(
@@ -84,7 +77,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// PUT /api/books/:id - Actualizează o carte după ID (fără caching)
 router.put("/:id", async (req, res) => {
   try {
     const response = await axios.put(
@@ -92,10 +84,8 @@ router.put("/:id", async (req, res) => {
       req.body
     );
 
-    // Invalidează cache-ul pentru toate cărțile
     cache.del("/api/books");
 
-    // Emite un eveniment "BOOK_UPDATED" și trimite datele actualizate ale cărții
     eventBus.emit("BOOK_UPDATED", response.data);
     console.log("Eveniment BOOK_UPDATED emis pentru cartea:", response.data);
 
@@ -109,17 +99,14 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/books/:id - Șterge o carte după ID (fără caching)
 router.delete("/:id", async (req, res) => {
   try {
     const response = await axios.delete(
       `${BOOKS_SERVICE_URL}/api/books/${req.params.id}`
     );
 
-    // Invalidează cache-ul pentru toate cărțile
     cache.del("/api/books");
 
-    // Emite un eveniment "BOOK_DELETED" și trimite ID-ul cărții șterse
     eventBus.emit("BOOK_DELETED", req.params.id);
     console.log("Eveniment BOOK_DELETED emis pentru cartea ID:", req.params.id);
 

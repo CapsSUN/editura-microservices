@@ -21,7 +21,7 @@ const routes = [
       { path: "", name: "BookList", component: BookList },
       { path: "add", name: "AddBook", component: BookForm },
       { path: "edit/:id", name: "EditBook", component: BookForm },
-      { path: ":id", name: "BookDetails", component: BookDetails }, // Adăugăm ruta pentru detalii carte
+      { path: ":id", name: "BookDetails", component: BookDetails },
     ],
   },
   {

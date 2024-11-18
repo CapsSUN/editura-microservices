@@ -53,7 +53,7 @@ export default {
     async deleteAuthor(id) {
       try {
         await axios.delete(`/authors/${id}`);
-        this.fetchAuthors(); // Reîncarcă lista
+        this.fetchAuthors();
       } catch (error) {
         this.errorMessage = "Eroare la ștergerea autorului";
         console.error("Eroare la ștergerea autorului:", error.message);

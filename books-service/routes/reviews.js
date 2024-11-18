@@ -3,22 +3,18 @@ const router = express.Router();
 const Review = require("../models/Review");
 const Book = require("../models/Book");
 
-// POST: Adaugă o recenzie și actualizează automat cartea
 router.post("/", async (req, res) => {
   const { book, user, rating, comment } = req.body;
 
   try {
-    // Verifică dacă cartea există
     const bookExists = await Book.findById(book);
     if (!bookExists) {
       return res.status(404).json({ error: "Cartea nu a fost găsită" });
     }
 
-    // Creează recenzia
     const review = new Review({ book, user, rating, comment });
     await review.save();
 
-    // Adaugă recenzia la carte și returnează cartea actualizată
     const updatedBook = await Book.findByIdAndUpdate(
       book,
       { $push: { reviews: review._id } },
@@ -36,16 +32,13 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET: Obține recenziile pentru o carte
 router.get("/:bookId", async (req, res) => {
   try {
-    // Verifică dacă cartea există
     const bookExists = await Book.findById(req.params.bookId);
     if (!bookExists) {
       return res.status(404).json({ error: "Cartea nu a fost găsită" });
     }
 
-    // Obține recenziile pentru carte
     const reviews = await Review.find({ book: req.params.bookId });
     res.json(reviews);
   } catch (error) {
@@ -54,7 +47,6 @@ router.get("/:bookId", async (req, res) => {
   }
 });
 
-// GET: Obține toate recenziile
 router.get("/", async (req, res) => {
   try {
     const reviews = await Review.find().populate("book");
